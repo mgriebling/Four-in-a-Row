@@ -53,10 +53,9 @@ class Board: NSObject {
 		if pos.inc(col: moveX * 3).col >= Board.width  { return false }
 		
 		// now we need to check all positions
-		if chip(in: pos) 							!= initialChip { return false }
-		if chip(in: pos.inc(moveY,   col: moveX)) 	!= initialChip { return false }
-		if chip(in: pos.inc(moveY*2, col: moveX*2)) != initialChip { return false }
-		if chip(in: pos.inc(moveY*3, col: moveX*3)) != initialChip { return false }
+		for items in 0..<itemsInARow {
+			if chip(in: pos.inc(moveY*items, col: moveX*items))	!= initialChip { return false }
+		}
 		return true
 	}
 	
