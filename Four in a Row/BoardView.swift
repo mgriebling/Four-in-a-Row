@@ -15,7 +15,7 @@ struct BoardView: View {
 	
 	var body: some View {
 		ZStack {
-			HStack(spacing: 0) {
+			HStack(spacing: 3) {
 				ForEach(0..<Board.width, id:\.self) { column in
 					BallDropView(board: board, column: column) {
 						// tap gesture
@@ -28,8 +28,9 @@ struct BoardView: View {
 			.padding(.horizontal)
 			.frame(maxWidth: .infinity, maxHeight: .infinity)
 			.onAppear {
-				self.strategist.maxLookAheadDepth = 7
-				self.strategist.randomSource = GKARC4RandomSource()
+				// 3 - pretty good (without random)
+				self.strategist.maxLookAheadDepth = 3
+				self.strategist.randomSource = nil // GKARC4RandomSource()
 				resetBoard()
 			}
 			.navigationTitle(title)

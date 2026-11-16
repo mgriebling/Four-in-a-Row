@@ -35,6 +35,8 @@ class Board: NSObject {
 	var currentPlayer: Player
 	var itemsInARow: Int
 	
+	final var winCount = 0
+	
 	init(itemsInARow: Int = 4) {
 		self.currentPlayer = Player.allPlayers[0]
 		self.itemsInARow = itemsInARow
@@ -137,6 +139,10 @@ class Board: NSObject {
 }
 
 extension Board: GKGameModel {
+	private static let MAX_SCORE = 1_000_000_000_000
+	private static let SEMI_OPEN_SCORE = [0, 1, 100, 10_000, 1_000_000, 100_000_000]
+	private static let FULL_OPEN_SCORE = [0, 10, 1_000, 100_000, 10_000_000, 1_000_000_000]
+	
 	/// Compliance with GKGameModel
 	///
 	var players: [any GKGameModelPlayer]? {
@@ -179,15 +185,111 @@ extension Board: GKGameModel {
 	}
 	
 	func score(for player: any GKGameModelPlayer) -> Int {
-		if let playerObject = player as? Player {
-			if isWin(for: playerObject) {
-				return 1000
-			} else if isWin(for: playerObject.opponent) {
-				return -1000
+		var score = 0
+		
+		for x in 0..<Self.width {
+			// vertical
+			score += getScore(x, 0, 0, 1);
+			
+			// diagonal top side going down/right
+			score += getScore(x, 0, 1, 1);
+
+			// diagonal bottom side going up/right
+			score += getScore(x, Self.height-1, 1, -1);
+		}
+
+		for y in 0..<Self.height {
+			// horizontal
+			score += getScore(0, y, 1, 0)
+	
+			if y > 0 && y < Self.height - 1 {
+				// diagonal left side going down/right
+				score += getScore(0, y, 1, 1)
+
+				// diagonal left side going up/right
+				score += getScore(0, y, 1, -1)
 			}
 		}
-		return 0
+		
+		return score
 	}
+	
+	private func getScore(_ x:Int, _ y:Int, _ deltaX:Int, _ deltaY:Int) -> Int {
+		var score = 0
+		var x = x
+		var y = y
+		
+		var leftOpen = false
+		var position : ChipColor
+		var lastPosition : ChipColor? = nil
+		var whiteCount = 0
+		var blackCount = 0
+		
+		while x >= 0 && x < Self.width && y >= 0 && y < Self.height {
+			position = self[Position(row: y, col: x)]
+			switch position {
+				case .blue:
+					if let lastPosition, lastPosition == ChipColor.yellow {
+						leftOpen = false
+					} else if let lastPosition, lastPosition == ChipColor.none {
+						leftOpen = true
+					}
+					score -= calculateScore(blackCount, leftOpen, false)
+					blackCount = 0
+					whiteCount += 1
+				case .yellow:
+					if let lastPosition, lastPosition == ChipColor.blue {
+						leftOpen = false
+					} else if let lastPosition, lastPosition == ChipColor.none {
+						leftOpen = true
+					}
+					score += calculateScore(whiteCount, leftOpen, false)
+					whiteCount = 0
+					blackCount += 1
+				case .none:
+					score -= calculateScore(blackCount, leftOpen, true)
+					score += calculateScore(whiteCount, leftOpen, true)
+					whiteCount = 0
+					blackCount = 0
+			}
+			
+			x += deltaX
+			y += deltaY
+			
+			lastPosition = position
+		}
+		
+		score -= calculateScore(blackCount, leftOpen, false)
+		score += calculateScore(whiteCount, leftOpen, false)
+		
+		return score;
+	}
+	
+	private func calculateScore(_ count:Int, _ leftOpen:Bool, _ rightOpen:Bool) -> Int {
+		if count >= winCount {
+			return Self.MAX_SCORE
+		}
+		if !leftOpen && !rightOpen {
+			return 0
+		}
+		
+		if leftOpen && rightOpen {
+			return Self.FULL_OPEN_SCORE[count]
+		}
+		return Self.SEMI_OPEN_SCORE[count]
+	}
+
+	
+//	func score(for player: any GKGameModelPlayer) -> Int {
+//		if let playerObject = player as? Player {
+//			if isWin(for: playerObject) {
+//				return 1000
+//			} else if isWin(for: playerObject.opponent) {
+//				return -1000
+//			}
+//		}
+//		return 0
+//	}
 	
 	func copy(with zone: NSZone? = nil) -> Any {
 		let copy = Board()

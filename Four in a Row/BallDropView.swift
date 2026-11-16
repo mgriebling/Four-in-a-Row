@@ -12,18 +12,14 @@ struct BallDropView: View {
 	let column: Int
 	let tap: () -> ()
 	
-	static let height: CGFloat = 400
-	static let containerWallWidth: CGFloat = 4
-	
-	@State private var viewHeight = height
 	@State private var scale: CGFloat = 1
 	@State private var offset: CGFloat = 0
 
 	var body: some View {
 		let containerHeight: CGFloat = 380
-		let ballWidth: CGFloat = 64
-		let orgScale = ballWidth/containerHeight
-		let initialBallHeight = -500.0 * scale
+		let orgBallWidth: CGFloat = 60
+		let orgScale = orgBallWidth/containerHeight
+		let initialBallHeight = -500.0
 		
 		VStack(spacing: 0) {
 			ForEach(0..<Board.height, id:\.self) { row in
@@ -39,14 +35,8 @@ struct BallDropView: View {
 		.onTapGesture(perform: tap)
 		.overlay {
 			TestTubeShape()
-				.stroke(Color(.systemGray4), lineWidth: Self.containerWallWidth)
+				.stroke(Color(.systemGray4), lineWidth: 2)
 				.aspectRatio(orgScale, contentMode: .fit)
-				.onGeometryChange(for: CGSize.self) { proxy in
-					proxy.size
-				} action: { newSize in
-					viewHeight = newSize.height
-					scale = viewHeight / Self.height
-				}
 		}
 	}
 }
@@ -54,13 +44,15 @@ struct BallDropView: View {
 struct TestTubeShape: Shape {
 	func path(in rect: CGRect) -> Path {
 		var path = Path()
-		let radius = rect.width / 2
+		let radius = (rect.width + 6) / 2
+		let minX = rect.minX - 3
+		let maxX = rect.maxX + 3
 		
 		// 1. Start at top-left
-		path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+		path.move(to: CGPoint(x: minX, y: rect.minY))
 		
 		// 2. Line down to the start of the bottom-left curve
-		path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - radius))
+		path.addLine(to: CGPoint(x: minX, y: rect.maxY - radius))
 		
 		// 3. Semicircular bowl across the bottom
 		path.addArc(
@@ -72,7 +64,7 @@ struct TestTubeShape: Shape {
 		)
 		
 		// 4. Line up to top-right (leave open by omitting closeSubpath)
-		path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+		path.addLine(to: CGPoint(x: maxX, y: rect.minY))
 		return path
 	}
 }
