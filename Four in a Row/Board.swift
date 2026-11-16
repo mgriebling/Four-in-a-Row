@@ -15,9 +15,15 @@ struct Position: Codable, Hashable, Equatable {
 	func inc(_ row: Int = 0, col: Int = 0) -> Position {
 		Position(row: self.row + row, col: self.col + col)
 	}
+	
+	func inc(_ move: NavigationFunction, to end: Int) -> Position {
+		var pos = self
+		move(&pos, end)
+		return pos
+	}
 }
 
-typealias NavigationFunction = (inout Position) -> ()
+typealias NavigationFunction = (inout Position, Int) -> ()
 
 @Observable
 class Board: NSObject {
@@ -45,19 +51,26 @@ class Board: NSObject {
 		slots.count { $0 == .none } == 0
 	}
 	
-	func squaresMatch(initialChip: ChipColor, pos: Position, moveX: Int, moveY: Int) -> Bool {
-		// bail out early if we can't win from here
-		if pos.inc(moveY * 3).row 	   <  0 		   { return false }
-		if pos.inc(moveY * 3).row 	   >= Board.height { return false }
-		if pos.inc(col: moveX * 3).col <  0 		   { return false }
-		if pos.inc(col: moveX * 3).col >= Board.width  { return false }
+	func squaresMatch(initialChip: ChipColor, pos: Position, move: NavigationFunction) -> Bool {
+		/// bail out early if we can't win from here
+		/// checks the end of each pos for a matching chip
+		let endPos = pos.inc(move, to: itemsInARow-1)
+		if endPos.row < 0 || endPos.row >= Board.height { return false }
+		if endPos.col < 0 || endPos.col >= Board.width  { return false }
 		
-		// now we need to check all positions
+		/// now we need to check all positions in the *move* direction
 		for items in 0..<itemsInARow {
-			if chip(in: pos.inc(moveY*items, col: moveX*items))	!= initialChip { return false }
+			if chip(in: pos.inc(move, to:items)) != initialChip { return false }
 		}
 		return true
 	}
+	
+	let moves: [NavigationFunction] = [
+		{pos, end in pos.col += end }, 				   // check to the right
+		{pos, end in pos.row += end }, 				   // check below
+		{pos, end in pos.row += end; pos.col += end }, // diagonal down, right
+		{pos, end in pos.row -= end; pos.col += end }  // diagonal up, right
+	]
 	
 	func isWin(for player: GKGameModelPlayer) -> Bool {
 		let chip = (player as! Player).chip
@@ -65,14 +78,10 @@ class Board: NSObject {
 		for row in 0..<Board.height {
 			for col in 0..<Board.width {
 				let pos = Position(row: row, col: col)
-				if squaresMatch(initialChip: chip, pos: pos, moveX: 1, moveY: 0) {
-					return true
-				} else if squaresMatch(initialChip: chip, pos: pos, moveX: 0, moveY: 1) {
-					return true
-				} else if squaresMatch(initialChip: chip, pos: pos, moveX: 1, moveY: 1) {
-					return true
-				} else if squaresMatch(initialChip: chip, pos: pos, moveX: 1, moveY: -1) {
-					return true
+				for move in moves {
+					if squaresMatch(initialChip: chip, pos: pos, move: move) {
+						return true
+					}
 				}
 			}
 		}
@@ -80,11 +89,30 @@ class Board: NSObject {
 	}
 	
 	func chip(in pos: Position) -> ChipColor {
-		slots[pos.row + pos.col * Self.height]
+		self[pos]
+		// slots[pos.row + pos.col * Self.height]
 	}
 	
 	func set(chip: ChipColor, in pos: Position) {
-		slots[pos.row + pos.col * Self.height] = chip
+		self[pos] = chip
+		// slots[pos.row + pos.col * Self.height] = chip
+	}
+	
+	private func index(from pos: Position) -> Int {
+		pos.row + pos.col * Self.height
+	}
+	
+	subscript(position: Position) -> ChipColor {
+		get {
+			let index = index(from: position)
+			guard index >= 0 && index < slots.count else { return ChipColor.none }
+			return slots[index]
+		}
+		set {
+			let index = index(from: position)
+			guard index >= 0 && index < slots.count else { return }
+			slots[index] = newValue
+		}
 	}
 	
 	func nextEmptySlot(in column: Int) -> Int? {

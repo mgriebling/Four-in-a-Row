@@ -39,7 +39,7 @@ struct BallDropView: View {
 		.onTapGesture(perform: tap)
 		.overlay {
 			TestTubeShape()
-				.stroke(Color(.systemGray), lineWidth: Self.containerWallWidth)
+				.stroke(Color(.systemGray4), lineWidth: Self.containerWallWidth)
 				.aspectRatio(orgScale, contentMode: .fit)
 				.onGeometryChange(for: CGSize.self) { proxy in
 					proxy.size

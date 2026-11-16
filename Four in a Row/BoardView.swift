@@ -11,6 +11,7 @@ struct BoardView: View {
 	@State private var disableMoves = false
 	@State private var gameOverTitle = ""
 	@State private var title = ""
+	@State private var playComputer = true
 	
 	var body: some View {
 		ZStack {
@@ -47,6 +48,21 @@ struct BoardView: View {
 					.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
 			}
 		}
+		.toolbar {
+			ToolbarItemGroup(placement: .bottomBar) {
+				Button {
+					resetBoard()
+				} label: {
+					Text("New Game")
+				}
+				Spacer()
+				Picker("Opponent:", selection: $playComputer) {
+					Text("AI").tag(true)
+					Text("Person").tag(false)
+				}
+				.pickerStyle(.segmented)
+			}
+		}
 	}
 	
 	func resetBoard() {
@@ -58,7 +74,7 @@ struct BoardView: View {
 	
 	func updateUI() {
 		title = "\(board.currentPlayer.name)'s Turn"
-		if board.currentPlayer.chip == .yellow {
+		if board.currentPlayer.chip == .yellow, playComputer {
 			startAIMove()
 		}
 	}
@@ -85,7 +101,7 @@ struct BoardView: View {
 			guard let column = self.columnForAIMove() else { return }
 			let delta = CFAbsoluteTimeGetCurrent() - strategistTime
 			
-			let aiTimeCeiling = 1.5 // seconds
+			let aiTimeCeiling = 1.0 // seconds
 			let delay = aiTimeCeiling - delta
 			
 			DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
